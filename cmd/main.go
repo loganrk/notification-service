@@ -9,6 +9,7 @@ import (
 
 	"github.com/loganrk/message-service/config"
 	"github.com/loganrk/message-service/internal/core/port"
+	userUsecase "github.com/loganrk/message-service/internal/core/usecase/user"
 
 	aesCipher "github.com/loganrk/message-service/internal/adapters/cipher/aes"
 	"github.com/loganrk/message-service/internal/adapters/handler"
@@ -49,7 +50,11 @@ func main() {
 		return
 	}
 
-	handlerIns := handler.New(logger)
+	// Initialize user service
+	userService := userUsecase.New(logger)
+	services := port.SvrList{User: userService}
+
+	handlerIns := handler.New(logger, services)
 
 	kafkaIns.ConsumeActivation(context.Background(), handlerIns.Activation, handlerIns.ActivationError)
 	kafkaIns.ConsumePasswordReset(context.Background(), handlerIns.PasswordReset, handlerIns.PasswordResetError)
