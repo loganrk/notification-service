@@ -1,0 +1,24 @@
+application:
+  name: "message-service"  # Name of the application
+
+logger:
+  level: "debug"  # Options: debug, info, warn, error
+  encoding: 
+    method: "json" # Options: json, console
+    caller: true  # Include caller information in logs
+  path: "/path/to/app.log"  # Path to the application log file
+  errPath: "logs/error.log"  # Path to the error log file
+
+activation:
+  templatePath: "/path/to/activation-template.html"
+
+passwordReset:
+  templatePath: "/path/to/password-reset-template.html"
+
+kafka:
+  brokers:
+    - "g7kd8v84u4d..." # Encrypted kafka host
+  topics:
+    activation: "email_activation"
+    passwordReset: "email_password_reset"
+  consumer_group_name: "test-consumer-group-{{hostName}}" #macros : {{hostName}}
