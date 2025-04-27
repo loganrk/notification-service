@@ -9,11 +9,12 @@ logger:
   path: "/path/to/app.log"  # Path to the application log file
   errPath: "logs/error.log"  # Path to the error log file
 
-activation:
-  templatePath: "/path/to/activation-template.html"
 
-passwordReset:
-  templatePath: "/path/to/password-reset-template.html"
+user:
+  activation:
+    templatePath: "/path/to/activation-template.html"
+  passwordReset:
+    templatePath: "/path/to/password-reset-template.html"
 
 kafka:
   brokers:
@@ -22,3 +23,10 @@ kafka:
     activation: "email_activation"
     passwordReset: "email_password_reset"
   consumer_group_name: "test-consumer-group-{{hostName}}" #macros : {{hostName}}
+
+email:
+  smtp:
+    from: "noreply@example.com"
+    password: "your-email-password"
+    host: "smtp.gmail.com"
+    port: 587

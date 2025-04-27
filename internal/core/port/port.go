@@ -42,7 +42,11 @@ type Logger interface {
 	Sync(ctx context.Context) error // Flushes any buffered log entries
 }
 
-type Messager interface {
+type MessageReceiver interface {
 	ConsumeActivation(ctx context.Context, messageHandler func(ctx context.Context, message []byte) error, errorHandler func(ctx context.Context, err error)) error
 	ConsumePasswordReset(ctx context.Context, messageHandler func(ctx context.Context, message []byte) error, errorHandler func(ctx context.Context, err error)) error
+}
+
+type EmailSender interface {
+	SendEmail(to, subject, body string) error
 }
