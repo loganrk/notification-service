@@ -11,10 +11,11 @@ import (
 	"github.com/loganrk/message-service/internal/core/port"
 	userUsecase "github.com/loganrk/message-service/internal/core/usecase/user"
 
-	aesCipher "github.com/loganrk/message-service/internal/adapters/cipher/aes"
+	cipher "github.com/loganrk/message-service/internal/adapters/cipher/aes"
+	emailSender "github.com/loganrk/message-service/internal/adapters/emailSender/smtp"
 	"github.com/loganrk/message-service/internal/adapters/handler"
-	zapLogger "github.com/loganrk/message-service/internal/adapters/logger/zapLogger"
-	kafkaMessage "github.com/loganrk/message-service/internal/adapters/message/kafka"
+	logger "github.com/loganrk/message-service/internal/adapters/logger/zapLogger"
+	messageReceiver "github.com/loganrk/message-service/internal/adapters/messageReceiver/kafka"
 )
 
 func main() {
@@ -37,54 +38,81 @@ func main() {
 	}
 
 	// Initialize logger
-	logger, err := initLogger(appConfig.GetLogger())
+	loggerIns, err := initLogger(appConfig.GetLogger())
 	if err != nil {
 		log.Println("failed to initialize logger:", err)
 		return
 	}
 
-	// Initialize kafka
-	kafkaIns, err := initKafka(appConfig.GetKafka())
+	messageReceiverIns, err := initMessageReceiver(appConfig.GetKafka())
 	if err != nil {
-		logger.Errorw(context.Background(), "failed to initialize kafka", "error", err)
+		loggerIns.Errorw(context.Background(), "failed to initialize kafka", "error", err)
+		return
+	}
+
+	emailSenderIns, err := initEmailSender(appConfig.GetEmail())
+	if err != nil {
+		loggerIns.Errorw(context.Background(), "failed to initialize kafka", "error", err)
 		return
 	}
 
 	// Initialize user service
-	userService := userUsecase.New(logger)
+	userService, err := userUsecase.New(loggerIns, emailSenderIns, appConfig.GetUser())
+	if err != nil {
+		loggerIns.Errorw(context.Background(), "failed to initialize user usecase", "error", err)
+		return
+	}
+
 	services := port.SvrList{User: userService}
+	handlerIns := handler.New(loggerIns, services)
 
-	handlerIns := handler.New(logger, services)
-
-	kafkaIns.ConsumeActivation(context.Background(), handlerIns.Activation, handlerIns.ActivationError)
-	kafkaIns.ConsumePasswordReset(context.Background(), handlerIns.PasswordReset, handlerIns.PasswordResetError)
+	messageReceiverIns.ConsumeActivation(context.Background(), handlerIns.Activation, handlerIns.ActivationError)
+	messageReceiverIns.ConsumePasswordReset(context.Background(), handlerIns.PasswordReset, handlerIns.PasswordResetError)
 
 }
 
 // initLogger creates a new zap-based logger with the given config.
 func initLogger(conf config.Logger) (port.Logger, error) {
-	loggerConf := zapLogger.Config{
+	loggerConf := logger.Config{
 		Level:          conf.GetLoggerLevel(),
 		Encoding:       conf.GetLoggerEncodingMethod(),
 		EncodingCaller: conf.GetLoggerEncodingCaller(),
 		OutputPath:     conf.GetLoggerPath(),
 	}
-	return zapLogger.New(loggerConf)
+	return logger.New(loggerConf)
 }
 
-// initKafka creates a kafka instance with decrypted brokers.
-func initKafka(conf config.Kafka) (port.Messager, error) {
+// initMessageReceiver creates a kafka instance with decrypted brokers.
+func initMessageReceiver(conf config.Kafka) (port.MessageReceiver, error) {
 	cipherKey := os.Getenv("CIPHER_CRYPTO_KEY")
-	cipher := aesCipher.New(cipherKey)
+	cipherIns := cipher.New(cipherKey)
 	var brokers []string
 
 	for _, brokerEnc := range conf.GetBrokers() {
-		broker, err := cipher.Decrypt(brokerEnc)
+		broker, err := cipherIns.Decrypt(brokerEnc)
 		if err != nil {
 			return nil, err
 		}
 		brokers = append(brokers, broker)
 	}
 
-	return kafkaMessage.New(brokers, conf)
+	return messageReceiver.New(brokers, conf)
+}
+func initEmailSender(conf config.Email) (port.EmailSender, error) {
+	cipherKey := os.Getenv("CIPHER_CRYPTO_KEY")
+	cipherIns := cipher.New(cipherKey)
+
+	// Decrypt Host
+	host, err := cipherIns.Decrypt(conf.GetSMTPHost())
+	if err != nil {
+		return nil, err
+	}
+
+	// Decrypt Password
+	password, err := cipherIns.Decrypt(conf.GetSMTPPassword())
+	if err != nil {
+		return nil, err
+	}
+
+	return emailSender.New(conf.GetSMTPFrom(), host, password, conf.GetSMTPPort()), nil
 }

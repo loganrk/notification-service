@@ -13,9 +13,9 @@ type File struct {
 type App interface {
 	GetAppName() string
 	GetLogger() Logger
-	GetActivationTemplatePath() string
-	GetPasswordResetTemplatePath() string
 	GetKafka() Kafka
+	GetUser() User
+	GetEmail() Email
 }
 
 func StartConfig(path string, file File) (App, error) {
@@ -48,14 +48,13 @@ func (a app) GetLogger() Logger {
 	return a.Logger
 }
 
-func (a app) GetActivationTemplatePath() string {
-	return a.Activation.TemplatePath
-}
-
-func (a app) GetPasswordResetTemplatePath() string {
-	return a.PasswordReset.TemplatePath
+func (a app) GetUser() User {
+	return a.User
 }
 
 func (a app) GetKafka() Kafka {
 	return a.Kafka
+}
+func (a app) GetEmail() Email {
+	return a.Email
 }
