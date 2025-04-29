@@ -11,26 +11,29 @@ import (
 	"github.com/loganrk/message-service/internal/utils"
 )
 
+// userusecase implements user-related operations such as sending activation and password reset emails.
 type userusecase struct {
-	logger           port.Logger
-	activationTpl    string
-	passwordResetTpl string
-	emailSender      port.EmailSender
+	logger           port.Logger      // Logger interface for structured logging
+	activationTpl    string           // Email template content for activation emails
+	passwordResetTpl string           // Email template content for password reset emails
+	emailSender      port.EmailSender // Interface to send emails
 }
 
-// New initializes a new user service with required dependencies and returns it.
+// New initializes a new userusecase instance by loading email templates and setting dependencies.
 func New(loggerIns port.Logger, emailSenderIns port.EmailSender, userConf config.User) (*userusecase, error) {
-
+	// Read activation email template from file
 	activationTpl, err := os.ReadFile(userConf.GetActivationTemplatePath())
 	if err != nil {
 		return nil, fmt.Errorf("failed to load activation template: %w", err)
 	}
 
+	// Read password reset email template from file
 	passwordResetTpl, err := os.ReadFile(userConf.GetPasswordResetTemplatePath())
 	if err != nil {
 		return nil, fmt.Errorf("failed to load password reset template: %w", err)
 	}
 
+	// Return the fully initialized userusecase
 	return &userusecase{
 		logger:           loggerIns,
 		emailSender:      emailSenderIns,
@@ -39,41 +42,42 @@ func New(loggerIns port.Logger, emailSenderIns port.EmailSender, userConf config
 	}, nil
 }
 
+// Activation processes a user activation request and sends an activation email.
 func (u *userusecase) Activation(ctx context.Context, req domain.UserActivation) error {
-
 	if req.Type == "activation-email" {
-
 		u.logger.Infow(ctx, "Processing Activation Email",
 			"to", req.To,
 			"subject", req.Subject,
 			"macros", req.Macros,
 		)
 
+		// Replace macros in the activation template with actual values
 		emailBody := utils.ReplaceMacros(u.activationTpl, req.Macros)
 
+		// Send the activation email
 		err := u.emailSender.SendEmail(req.To, req.Subject, emailBody)
 		if err != nil {
 			u.logger.Errorw(ctx, "Failed to send activation email", "error", err)
 			return err
 		}
-
 	}
 
 	return nil
 }
 
+// PasswordReset processes a password reset request and sends a password reset email.
 func (u *userusecase) PasswordReset(ctx context.Context, req domain.UserPasswordReset) error {
-
 	if req.Type == "activation-email" {
-
 		u.logger.Infow(ctx, "Processing Password Reset Email",
 			"to", req.To,
 			"subject", req.Subject,
 			"macros", req.Macros,
 		)
 
+		// Replace macros in the password reset template with actual values
 		emailBody := utils.ReplaceMacros(u.passwordResetTpl, req.Macros)
 
+		// Send the password reset email
 		err := u.emailSender.SendEmail(req.To, req.Subject, emailBody)
 		if err != nil {
 			u.logger.Errorw(ctx, "Failed to send password reset email", "error", err)
