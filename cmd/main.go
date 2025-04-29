@@ -22,12 +22,12 @@ func main() {
 	// Load environment variables from .env file
 	godotenv.Load()
 
-	// Read config file path, name, and type from environment variables
+	// Load config values from file
 	configPath := os.Getenv("CONFIG_FILE_PATH")
 	configName := os.Getenv("CONFIG_FILE_NAME")
 	configType := os.Getenv("CONFIG_FILE_TYPE")
 
-	// Initialize application configuration
+	// Initialize app config
 	appConfig, err := config.StartConfig(configPath, config.File{
 		Name: configName,
 		Ext:  configType,
@@ -37,41 +37,53 @@ func main() {
 		return
 	}
 
-	// Initialize logger
+	// Initialize cipher for encrypted data decryption
+	cipherIns := initCipher()
+
+	// Initialize zap-based logger
 	loggerIns, err := initLogger(appConfig.GetLogger())
 	if err != nil {
 		log.Println("failed to initialize logger:", err)
 		return
 	}
 
-	messageReceiverIns, err := initMessageReceiver(appConfig.GetKafka())
+	// Initialize Kafka message receiver
+	messageReceiverIns, err := initMessageReceiver(appConfig.GetKafka(), cipherIns)
 	if err != nil {
 		loggerIns.Errorw(context.Background(), "failed to initialize kafka", "error", err)
 		return
 	}
 
-	emailSenderIns, err := initEmailSender(appConfig.GetEmail())
+	// Initialize SMTP email sender
+	emailSenderIns, err := initEmailSender(appConfig.GetEmail(), cipherIns)
 	if err != nil {
-		loggerIns.Errorw(context.Background(), "failed to initialize kafka", "error", err)
+		loggerIns.Errorw(context.Background(), "failed to initialize email sender", "error", err)
 		return
 	}
 
-	// Initialize user service
-	userService, err := userUsecase.New(loggerIns, emailSenderIns, appConfig.GetUser())
+	// Initialize user usecase/service with logger, email sender, and user config
+	userServiceIns, err := initUserService(loggerIns, emailSenderIns, appConfig.GetUser())
 	if err != nil {
 		loggerIns.Errorw(context.Background(), "failed to initialize user usecase", "error", err)
 		return
 	}
 
-	services := port.SvrList{User: userService}
-	handlerIns := handler.New(loggerIns, services)
+	// Register service(s) to handler
+	services := port.SvrList{User: userServiceIns}
+	handlerIns := initHandler(loggerIns, services)
 
+	// Start message receiver consumers for different event types
 	messageReceiverIns.ConsumeActivation(context.Background(), handlerIns.Activation, handlerIns.ActivationError)
 	messageReceiverIns.ConsumePasswordReset(context.Background(), handlerIns.PasswordReset, handlerIns.PasswordResetError)
-
 }
 
-// initLogger creates a new zap-based logger with the given config.
+// initCipher initializes the AES cipher using the secret key from environment variable.
+func initCipher() port.Cipher {
+	cipherKey := os.Getenv("CIPHER_CRYPTO_KEY")
+	return cipher.New(cipherKey)
+}
+
+// initLogger initializes the zap logger with the provided configuration.
 func initLogger(conf config.Logger) (port.Logger, error) {
 	loggerConf := logger.Config{
 		Level:          conf.GetLoggerLevel(),
@@ -82,12 +94,11 @@ func initLogger(conf config.Logger) (port.Logger, error) {
 	return logger.New(loggerConf)
 }
 
-// initMessageReceiver creates a kafka instance with decrypted brokers.
-func initMessageReceiver(conf config.Kafka) (port.MessageReceiver, error) {
-	cipherKey := os.Getenv("CIPHER_CRYPTO_KEY")
-	cipherIns := cipher.New(cipherKey)
+// initMessageReceiver decrypts the Kafka broker URLs and returns a Kafka receiver instance.
+func initMessageReceiver(conf config.Kafka, cipherIns port.Cipher) (port.MessageReceiver, error) {
 	var brokers []string
 
+	// Decrypt each broker address
 	for _, brokerEnc := range conf.GetBrokers() {
 		broker, err := cipherIns.Decrypt(brokerEnc)
 		if err != nil {
@@ -96,23 +107,41 @@ func initMessageReceiver(conf config.Kafka) (port.MessageReceiver, error) {
 		brokers = append(brokers, broker)
 	}
 
-	return messageReceiver.New(brokers, conf)
+	// Pass individual config values to the Kafka adapter
+	return messageReceiver.New(
+		brokers,
+		conf.GetConsumerGroupName(),
+		conf.GetActivationTopic(),
+		conf.GetPasswordResetTopic(),
+	)
 }
-func initEmailSender(conf config.Email) (port.EmailSender, error) {
-	cipherKey := os.Getenv("CIPHER_CRYPTO_KEY")
-	cipherIns := cipher.New(cipherKey)
 
-	// Decrypt Host
+// initEmailSender decrypts SMTP credentials and initializes the email sender.
+func initEmailSender(conf config.Email, cipherIns port.Cipher) (port.EmailSender, error) {
+	// Decrypt host
 	host, err := cipherIns.Decrypt(conf.GetSMTPHost())
 	if err != nil {
 		return nil, err
 	}
 
-	// Decrypt Password
+	// Decrypt password
 	password, err := cipherIns.Decrypt(conf.GetSMTPPassword())
 	if err != nil {
 		return nil, err
 	}
 
+	// Return new email sender instance
 	return emailSender.New(conf.GetSMTPFrom(), host, password, conf.GetSMTPPort()), nil
+}
+
+// initHandler initializes the message handler with logger and available services.
+func initHandler(logger port.Logger, services port.SvrList) port.Hanlder {
+	return handler.New(logger, services)
+}
+
+// initUserService creates a new instance of the user service/usecase.
+func initUserService(logger port.Logger, emailSender port.EmailSender, conf config.User) (port.UserSvr, error) {
+
+	// Create and return the user service
+	return userUsecase.New(logger, emailSender, conf)
 }

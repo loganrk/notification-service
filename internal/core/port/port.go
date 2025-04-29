@@ -9,7 +9,7 @@ type Hanlder interface {
 	PasswordReset(ctx context.Context, message []byte) error
 
 	ActivationError(ctx context.Context, err error)
-	PasswordResetError(ctx context.Context, message []byte) error
+	PasswordResetError(ctx context.Context, err error)
 }
 
 // Cipher defines the interface for encrypting and decrypting strings.
