@@ -21,12 +21,7 @@ type kafkaMessager struct {
 
 // New initializes the kafkaMessager with the provided Kafka connection details.
 // It creates separate consumer groups for activation and password reset topics.
-func New(
-	brokers []string,
-	groupID string,
-	activationTopic string,
-	passwordResetTopic string,
-) (*kafkaMessager, error) {
+func New(brokers []string, groupID string, activationTopic string, passwordResetTopic string) (*kafkaMessager, error) {
 
 	// Create a common Sarama config
 	cfg := sarama.NewConfig()

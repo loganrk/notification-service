@@ -11,11 +11,12 @@ import (
 	"github.com/loganrk/message-service/internal/core/port"
 	userUsecase "github.com/loganrk/message-service/internal/core/usecase/user"
 
-	cipher "github.com/loganrk/message-service/internal/adapters/cipher/aes"
 	emailSender "github.com/loganrk/message-service/internal/adapters/emailSender/smtp"
 	"github.com/loganrk/message-service/internal/adapters/handler"
-	logger "github.com/loganrk/message-service/internal/adapters/logger/zapLogger"
 	messageReceiver "github.com/loganrk/message-service/internal/adapters/messageReceiver/kafka"
+
+	cipher "github.com/loganrk/utils-go/adapters/cipher/aes"
+	logger "github.com/loganrk/utils-go/adapters/logger/zapLogger"
 )
 
 func main() {
