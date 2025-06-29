@@ -1,14 +1,15 @@
-package kafka
+package consumer
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
-	"github.com/IBM/sarama"
+	"github.com/Shopify/sarama"
 )
 
-// Message is the structure expected from Kafka.
+// message is the structure expected from Kafka.
 type message struct {
 	Type    string            `json:"type"`    // e.g., "activation_email", "reset_phone"
 	To      string            `json:"to"`      // email or phone
@@ -35,15 +36,11 @@ type consumer struct {
 }
 
 // New initializes the consumer with the provided Kafka connection details.
-// It creates separate consumer groups for activation and password reset topics.
 func New(brokers []string, groupID string) *consumer {
-
-	// Create a common Sarama config
 	cfg := sarama.NewConfig()
-	cfg.Consumer.Offsets.Initial = sarama.OffsetNewest // Start from latest messages
+	cfg.Consumer.Offsets.Initial = sarama.OffsetNewest
 	cfg.Version = sarama.V2_1_0_0
 
-	// Return initialized consumer
 	return &consumer{
 		groupID:      groupID,
 		brokers:      brokers,
@@ -51,18 +48,16 @@ func New(brokers []string, groupID string) *consumer {
 	}
 }
 
-// RegisterActivationHandlers sets both activation handlers at once
+// RegisterActivation sets both activation handlers at once
 func (c *consumer) RegisterActivation(
 	activationTopic string,
 	phoneHandler func(to string, macros map[string]string) error,
 	emailHandler func(to, subject string, macros map[string]string) error,
-
 ) error {
 	c.activationTopic = activationTopic
 	c.activationPhoneHandler = phoneHandler
 	c.activationEmailHandler = emailHandler
 
-	// Create consumer group for activation topic
 	activationConsumer, err := sarama.NewConsumerGroup(c.brokers, c.groupID, c.saramaConfig)
 	if err != nil {
 		return err
@@ -70,7 +65,6 @@ func (c *consumer) RegisterActivation(
 	c.activationConsumer = activationConsumer
 
 	return nil
-
 }
 
 // RegisterPasswordResetHandlers sets both password reset handlers at once
@@ -83,29 +77,34 @@ func (c *consumer) RegisterPasswordResetHandlers(
 	c.passwordResetPhoneHandler = phoneHandler
 	c.passwordResetEmailHandler = emailHandler
 
-	// Create consumer group for password reset topic
 	passwordResetConsumer, err := sarama.NewConsumerGroup(c.brokers, c.groupID, c.saramaConfig)
 	if err != nil {
 		return err
 	}
 	c.passwordResetConsumer = passwordResetConsumer
+
 	return nil
 }
 
-// ConsumeActivation starts consuming activation messages.
+// ListenActivationHResetTopic starts consuming activation messages.
 func (c *consumer) ListenActivationHResetTopic(ctx context.Context, errorHandler func(context.Context, error)) error {
 	return c.consume(ctx, c.activationConsumer, c.activationTopic, c.routeActivation, errorHandler)
 }
 
-// ConsumePasswordReset starts consuming password reset messages.
+// ListenPasswordResetTopic starts consuming password reset messages.
 func (c *consumer) ListenPasswordResetTopic(ctx context.Context, errorHandler func(context.Context, error)) error {
 	return c.consume(ctx, c.passwordResetConsumer, c.passwordResetTopic, c.routePasswordReset, errorHandler)
 }
 
-// Internal router for activation topic messages.
+// routeActivation handles activation topic messages.
 func (c *consumer) routeActivation(ctx context.Context, msgBytes []byte) error {
+	if len(msgBytes) == 0 {
+		return fmt.Errorf("received empty activation message (EOF)")
+	}
+
 	var msg message
 	if err := json.Unmarshal(msgBytes, &msg); err != nil {
+		log.Printf("Failed to unmarshal activation message: %s, error: %v", string(msgBytes), err)
 		return err
 	}
 
@@ -119,10 +118,15 @@ func (c *consumer) routeActivation(ctx context.Context, msgBytes []byte) error {
 	}
 }
 
-// Internal router for password reset topic messages.
+// routePasswordReset handles password reset topic messages.
 func (c *consumer) routePasswordReset(ctx context.Context, msgBytes []byte) error {
+	if len(msgBytes) == 0 {
+		return fmt.Errorf("received empty password reset message (EOF)")
+	}
+
 	var msg message
 	if err := json.Unmarshal(msgBytes, &msg); err != nil {
+		log.Printf("Failed to unmarshal password reset message: %s, error: %v", string(msgBytes), err)
 		return err
 	}
 
@@ -158,7 +162,6 @@ func (c *consumer) consume(
 			}
 		}
 	}()
-
 	return nil
 }
 
