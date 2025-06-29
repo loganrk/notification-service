@@ -98,6 +98,9 @@ func (c *consumer) ListenPasswordResetTopic(ctx context.Context, errorHandler fu
 
 // routeActivation handles activation topic messages.
 func (c *consumer) routeActivation(ctx context.Context, msgBytes []byte) error {
+
+	fmt.Println("routeActivation msgBytes", string(msgBytes))
+
 	if len(msgBytes) == 0 {
 		return fmt.Errorf("received empty activation message (EOF)")
 	}
@@ -120,6 +123,8 @@ func (c *consumer) routeActivation(ctx context.Context, msgBytes []byte) error {
 
 // routePasswordReset handles password reset topic messages.
 func (c *consumer) routePasswordReset(ctx context.Context, msgBytes []byte) error {
+	fmt.Println("routePasswordReset msgBytes", string(msgBytes))
+
 	if len(msgBytes) == 0 {
 		return fmt.Errorf("received empty password reset message (EOF)")
 	}
@@ -151,6 +156,7 @@ func (c *consumer) consume(
 	go func() {
 		defer consumerGroup.Close()
 		for {
+			fmt.Println("abc")
 			if err := consumerGroup.Consume(ctx, []string{topic}, &consumerHandler{
 				messageHandler: messageHandler,
 				errorHandler:   errorHandler,
@@ -176,6 +182,8 @@ func (h *consumerHandler) Cleanup(sarama.ConsumerGroupSession) error { return ni
 
 func (h *consumerHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for message := range claim.Messages() {
+		fmt.Println("message", message)
+
 		if err := h.messageHandler(session.Context(), message.Value); err != nil {
 			h.errorHandler(session.Context(), err)
 		}
