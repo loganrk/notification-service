@@ -88,11 +88,15 @@ func (c *consumer) RegisterPasswordResetHandlers(
 
 // ListenActivationHResetTopic starts consuming activation messages.
 func (c *consumer) ListenActivationHResetTopic(ctx context.Context, errorHandler func(context.Context, error)) error {
+	fmt.Println("activationTopic", c.activationTopic)
+
 	return c.consume(ctx, c.activationConsumer, c.activationTopic, c.routeActivation, errorHandler)
 }
 
 // ListenPasswordResetTopic starts consuming password reset messages.
 func (c *consumer) ListenPasswordResetTopic(ctx context.Context, errorHandler func(context.Context, error)) error {
+	fmt.Println("passwordResetTopic", c.passwordResetTopic)
+
 	return c.consume(ctx, c.passwordResetConsumer, c.passwordResetTopic, c.routePasswordReset, errorHandler)
 }
 
