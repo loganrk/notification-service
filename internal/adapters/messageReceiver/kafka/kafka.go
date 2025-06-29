@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 )
 
 // message is the structure expected from Kafka.
