@@ -43,13 +43,10 @@ func (m *MailjetEmailSender) SendEmail(to, subject, body string) error {
 	}
 
 	messages := mailjet.MessagesV31{Info: messagesInfo}
-	fmt.Println("messages", messages)
 	resp, err := m.Client.SendMailV31(&messages)
 	if err != nil {
 		return err
 	}
-	fmt.Println("resp", resp)
-
 	// Check how many messages were successfully sent
 	if len(resp.ResultsV31) == 0 {
 		return fmt.Errorf("no messages sent, response: %+v", resp)
