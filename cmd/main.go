@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 
@@ -68,7 +69,7 @@ func main() {
 	handlerIns := initHandler(loggerIns, services)
 
 	//Initialize Kafka message receiver
-	messageReceiverIns, err := initMessageReceiver(appConfig.GetKafka(), handlerIns, cipherIns)
+	messageReceiverIns, err := initMessageReceiver(appConfig.GetKafka(), appConfig.GetAppName(), handlerIns, cipherIns)
 	if err != nil {
 		loggerIns.Errorw(context.Background(), "failed to initialize kafka", "error", err)
 		return
@@ -100,7 +101,7 @@ func initLogger(conf config.Logger) (port.Logger, error) {
 }
 
 // initMessageReceiver decrypts the Kafka broker URLs and returns a Kafka receiver instance.
-func initMessageReceiver(conf config.Kafka, handlerIns port.Hanlder, cipherIns port.Cipher) (port.MessageReceiver, error) {
+func initMessageReceiver(conf config.Kafka, appName string, handlerIns port.Hanlder, cipherIns port.Cipher) (port.MessageReceiver, error) {
 	var brokers []string
 
 	// Decrypt each broker address
@@ -115,7 +116,7 @@ func initMessageReceiver(conf config.Kafka, handlerIns port.Hanlder, cipherIns p
 	// Pass individual config values to the Kafka adapter
 	messageReceiverIns := messageReceiver.New(
 		brokers,
-		conf.GetConsumerGroupName(),
+		strings.Replace(conf.GetConsumerGroupName(), "{{appName}}", appName, 1),
 	)
 
 	//Start message receiver consumers for different event types
