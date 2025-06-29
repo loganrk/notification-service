@@ -3,15 +3,15 @@ module github.com/loganrk/message-service
 go 1.20
 
 require (
-	github.com/IBM/sarama v1.45.2
 	github.com/joho/godotenv v1.5.1
-	github.com/loganrk/utils-go v1.0.4
+	github.com/loganrk/utils-go v1.0.9
 	github.com/mailjet/mailjet-apiv3-go v0.0.0-20201009050126-c24bc15a9394
 	github.com/spf13/viper v1.19.0
 )
 
 require (
 	github.com/BurntSushi/toml v1.5.0 // indirect
+	github.com/IBM/sarama v1.45.2 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/eapache/go-resiliency v1.7.0 // indirect
 	github.com/eapache/go-xerial-snappy v0.0.0-20230731223053-c322873962e3 // indirect

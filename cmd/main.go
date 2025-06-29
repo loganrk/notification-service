@@ -15,7 +15,7 @@ import (
 
 	emailSender "github.com/loganrk/message-service/internal/adapters/emailSender/mailjet"
 	"github.com/loganrk/message-service/internal/adapters/handler"
-	messageReceiver "github.com/loganrk/message-service/internal/adapters/messageReceiver/kafka"
+	messageReceiver "github.com/loganrk/utils-go/adapters/message/kafka/consumer"
 
 	cipher "github.com/loganrk/utils-go/adapters/cipher/aes"
 	logger "github.com/loganrk/utils-go/adapters/logger/zapLogger"
