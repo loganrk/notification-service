@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/IBM/sarama"
 )
@@ -107,8 +106,7 @@ func (c *consumer) routeActivation(ctx context.Context, msgBytes []byte) error {
 
 	var msg message
 	if err := json.Unmarshal(msgBytes, &msg); err != nil {
-		log.Printf("Failed to unmarshal activation message: %s, error: %v", string(msgBytes), err)
-		return err
+		return fmt.Errorf("Failed to unmarshal activation message: %s, error: %v", string(msgBytes), err)
 	}
 
 	switch msg.Type {
@@ -129,8 +127,7 @@ func (c *consumer) routePasswordReset(ctx context.Context, msgBytes []byte) erro
 
 	var msg message
 	if err := json.Unmarshal(msgBytes, &msg); err != nil {
-		log.Printf("Failed to unmarshal password reset message: %s, error: %v", string(msgBytes), err)
-		return err
+		return fmt.Errorf("Failed to unmarshal password reset message: %s, error: %v", string(msgBytes), err)
 	}
 
 	switch msg.Type {
