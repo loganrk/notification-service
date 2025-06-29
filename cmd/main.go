@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 
@@ -77,6 +78,7 @@ func main() {
 
 	go messageReceiverIns.ListenPasswordResetTopic(context.Background(), handlerIns.PasswordResetError)
 
+	fmt.Println("server start")
 	select {}
 }
 
