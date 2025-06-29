@@ -22,11 +22,11 @@ kafka:
   topics:
     activation: "email_activation"
     passwordReset: "email_password_reset"
-  consumer_group_name: "test-consumer-group-{{hostName}}" #macros : {{hostName}}
+  consumerGroupName: "test-consumer-group-{{hostName}}" #macros : {{hostName}}
 
 email:
-  smtp:
-    from: "noreply@example.com"
-    password: "your-email-password"
-    host: "smtp.gmail.com"
-    port: 587
+  mailjet:
+    apiKey: "your-mailjet-api-key"
+    apiSecret: "your-mailjet-api-secret"
+    fromEmail: "noreply@sampleApp.com"
+    fromName: "sampleApp"

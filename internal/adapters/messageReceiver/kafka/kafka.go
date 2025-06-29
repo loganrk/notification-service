@@ -2,81 +2,157 @@ package kafka
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/IBM/sarama"
 )
 
-// kafkaMessager is a Kafka adapter that handles two different consumer groups:
-// one for user activation and one for password reset.
-type kafkaMessager struct {
-	activationConsumer    sarama.ConsumerGroup
-	passwordResetConsumer sarama.ConsumerGroup
-
-	activationTopic    string
-	passwordResetTopic string
-	groupID            string
-	brokers            []string
-	saramaConfig       *sarama.Config
+// Message is the structure expected from Kafka.
+type message struct {
+	Type    string            `json:"type"`    // e.g., "activation_email", "reset_phone"
+	To      string            `json:"to"`      // email or phone
+	Subject string            `json:"subject"` // only for email
+	Macros  map[string]string `json:"macros"`  // template variables
 }
 
-// New initializes the kafkaMessager with the provided Kafka connection details.
+// consumer is a Kafka adapter that handles two different consumer groups:
+// one for user activation and one for password reset.
+type consumer struct {
+	activationTopic        string
+	activationConsumer     sarama.ConsumerGroup
+	activationPhoneHandler func(to string, macros map[string]string) error
+	activationEmailHandler func(to, subject string, macros map[string]string) error
+
+	passwordResetTopic        string
+	passwordResetConsumer     sarama.ConsumerGroup
+	passwordResetPhoneHandler func(to string, macros map[string]string) error
+	passwordResetEmailHandler func(to, subject string, macros map[string]string) error
+
+	groupID      string
+	brokers      []string
+	saramaConfig *sarama.Config
+}
+
+// New initializes the consumer with the provided Kafka connection details.
 // It creates separate consumer groups for activation and password reset topics.
-func New(brokers []string, groupID string, activationTopic string, passwordResetTopic string) (*kafkaMessager, error) {
+func New(brokers []string, groupID string) *consumer {
 
 	// Create a common Sarama config
 	cfg := sarama.NewConfig()
 	cfg.Consumer.Offsets.Initial = sarama.OffsetNewest // Start from latest messages
 
-	// Create consumer group for activation topic
-	activationConsumer, err := sarama.NewConsumerGroup(brokers, groupID, cfg)
-	if err != nil {
-		return nil, err
+	// Return initialized consumer
+	return &consumer{
+		groupID:      groupID,
+		brokers:      brokers,
+		saramaConfig: cfg,
 	}
+}
+
+// RegisterActivationHandlers sets both activation handlers at once
+func (c *consumer) RegisterActivation(
+	activationTopic string,
+	phoneHandler func(to string, macros map[string]string) error,
+	emailHandler func(to, subject string, macros map[string]string) error,
+
+) error {
+	c.activationTopic = activationTopic
+	c.activationPhoneHandler = phoneHandler
+	c.activationEmailHandler = emailHandler
+
+	// Create consumer group for activation topic
+	activationConsumer, err := sarama.NewConsumerGroup(c.brokers, c.groupID, c.saramaConfig)
+	if err != nil {
+		return err
+	}
+	c.activationConsumer = activationConsumer
+
+	return nil
+
+}
+
+// RegisterPasswordResetHandlers sets both password reset handlers at once
+func (c *consumer) RegisterPasswordResetHandlers(
+	passwordResetTopic string,
+	phoneHandler func(to string, macros map[string]string) error,
+	emailHandler func(to, subject string, macros map[string]string) error,
+) error {
+	c.passwordResetTopic = passwordResetTopic
+	c.passwordResetPhoneHandler = phoneHandler
+	c.passwordResetEmailHandler = emailHandler
 
 	// Create consumer group for password reset topic
-	passwordResetConsumer, err := sarama.NewConsumerGroup(brokers, groupID, cfg)
+	passwordResetConsumer, err := sarama.NewConsumerGroup(c.brokers, c.groupID, c.saramaConfig)
 	if err != nil {
-		return nil, err
+		return err
+	}
+	c.passwordResetConsumer = passwordResetConsumer
+	return nil
+}
+
+// ConsumeActivation starts consuming activation messages.
+func (c *consumer) ListenActivationHResetTopic(ctx context.Context, errorHandler func(context.Context, error)) error {
+	return c.consume(ctx, c.activationConsumer, c.activationTopic, c.routeActivation, errorHandler)
+}
+
+// ConsumePasswordReset starts consuming password reset messages.
+func (c *consumer) ListenPasswordResetTopic(ctx context.Context, errorHandler func(context.Context, error)) error {
+	return c.consume(ctx, c.passwordResetConsumer, c.passwordResetTopic, c.routePasswordReset, errorHandler)
+}
+
+// Internal router for activation topic messages.
+func (c *consumer) routeActivation(ctx context.Context, msgBytes []byte) error {
+	var msg message
+	if err := json.Unmarshal(msgBytes, &msg); err != nil {
+		return err
 	}
 
-	// Return initialized kafkaMessager
-	return &kafkaMessager{
-		activationConsumer:    activationConsumer,
-		passwordResetConsumer: passwordResetConsumer,
-		activationTopic:       activationTopic,
-		passwordResetTopic:    passwordResetTopic,
-		groupID:               groupID,
-		brokers:               brokers,
-		saramaConfig:          cfg,
-	}, nil
+	switch msg.Type {
+	case "verification-phone":
+		return c.activationPhoneHandler(msg.To, msg.Macros)
+	case "verification-email":
+		return c.activationEmailHandler(msg.To, msg.Subject, msg.Macros)
+	default:
+		return fmt.Errorf("unknown activation type: %s", msg.Type)
+	}
 }
 
-// ConsumeActivation starts consuming activation messages from the Kafka topic.
-func (k *kafkaMessager) ConsumeActivation(ctx context.Context, messageHandler func(context.Context, []byte) error, errorHandler func(context.Context, error)) error {
-	return k.consume(ctx, k.activationConsumer, k.activationTopic, messageHandler, errorHandler)
+// Internal router for password reset topic messages.
+func (c *consumer) routePasswordReset(ctx context.Context, msgBytes []byte) error {
+	var msg message
+	if err := json.Unmarshal(msgBytes, &msg); err != nil {
+		return err
+	}
+
+	switch msg.Type {
+	case "password-reset-phone":
+		return c.passwordResetPhoneHandler(msg.To, msg.Macros)
+	case "password-reset-email":
+		return c.passwordResetEmailHandler(msg.To, msg.Subject, msg.Macros)
+	default:
+		return fmt.Errorf("unknown password reset type: %s", msg.Type)
+	}
 }
 
-// ConsumePasswordReset starts consuming password reset messages from the Kafka topic.
-func (k *kafkaMessager) ConsumePasswordReset(ctx context.Context, messageHandler func(context.Context, []byte) error, errorHandler func(context.Context, error)) error {
-	return k.consume(ctx, k.passwordResetConsumer, k.passwordResetTopic, messageHandler, errorHandler)
-}
-
-// consume starts a goroutine that listens for messages on the specified topic using the given consumer group.
-// It continuously invokes the provided message handler and handles errors using the error handler.
-func (k *kafkaMessager) consume(ctx context.Context, consumerGroup sarama.ConsumerGroup, topic string, messageHandler func(context.Context, []byte) error, errorHandler func(context.Context, error)) error {
+// consume spawns a goroutine to consume from a Kafka topic.
+func (c *consumer) consume(
+	ctx context.Context,
+	consumerGroup sarama.ConsumerGroup,
+	topic string,
+	messageHandler func(context.Context, []byte) error,
+	errorHandler func(context.Context, error),
+) error {
 	go func() {
 		defer consumerGroup.Close()
 
 		for {
-			// Consume messages from the topic and delegate to consumerHandler
 			if err := consumerGroup.Consume(ctx, []string{topic}, &consumerHandler{
 				messageHandler: messageHandler,
 				errorHandler:   errorHandler,
 			}); err != nil {
 				errorHandler(ctx, err)
 			}
-
-			// Exit if the context is cancelled
 			if ctx.Err() != nil {
 				return
 			}
@@ -86,30 +162,20 @@ func (k *kafkaMessager) consume(ctx context.Context, consumerGroup sarama.Consum
 	return nil
 }
 
-// consumerHandler implements sarama.ConsumerGroupHandler
-// It delegates message processing and error handling to external functions.
+// consumerHandler delegates messages to a handler.
 type consumerHandler struct {
 	messageHandler func(context.Context, []byte) error
 	errorHandler   func(context.Context, error)
 }
 
-// Setup is called before consuming starts, can be used to initialize resources.
-// No setup needed in this case.
-func (h *consumerHandler) Setup(sarama.ConsumerGroupSession) error { return nil }
-
-// Cleanup is called after consuming stops, can be used to clean up resources.
-// No cleanup needed in this case.
+func (h *consumerHandler) Setup(sarama.ConsumerGroupSession) error   { return nil }
 func (h *consumerHandler) Cleanup(sarama.ConsumerGroupSession) error { return nil }
 
-// ConsumeClaim handles the actual message consumption logic.
-// It reads messages from the claim and delegates them to the message handler.
 func (h *consumerHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for message := range claim.Messages() {
-		// Process message
 		if err := h.messageHandler(session.Context(), message.Value); err != nil {
 			h.errorHandler(session.Context(), err)
 		}
-		// Mark message as processed
 		session.MarkMessage(message, "")
 	}
 	return nil

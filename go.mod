@@ -6,6 +6,7 @@ require (
 	github.com/IBM/sarama v1.20.1
 	github.com/joho/godotenv v1.5.1
 	github.com/loganrk/utils-go v1.0.4
+	github.com/mailjet/mailjet-apiv3-go v0.0.0-20201009050126-c24bc15a9394
 	github.com/spf13/viper v1.19.0
 )
 

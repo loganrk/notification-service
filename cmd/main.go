@@ -11,7 +11,7 @@ import (
 	"github.com/loganrk/message-service/internal/core/port"
 	userUsecase "github.com/loganrk/message-service/internal/core/usecase/user"
 
-	emailSender "github.com/loganrk/message-service/internal/adapters/emailSender/smtp"
+	emailSender "github.com/loganrk/message-service/internal/adapters/emailSender/mailjet"
 	"github.com/loganrk/message-service/internal/adapters/handler"
 	messageReceiver "github.com/loganrk/message-service/internal/adapters/messageReceiver/kafka"
 
@@ -48,13 +48,6 @@ func main() {
 		return
 	}
 
-	// Initialize Kafka message receiver
-	messageReceiverIns, err := initMessageReceiver(appConfig.GetKafka(), cipherIns)
-	if err != nil {
-		loggerIns.Errorw(context.Background(), "failed to initialize kafka", "error", err)
-		return
-	}
-
 	// Initialize SMTP email sender
 	emailSenderIns, err := initEmailSender(appConfig.GetEmail(), cipherIns)
 	if err != nil {
@@ -73,9 +66,18 @@ func main() {
 	services := port.SvrList{User: userServiceIns}
 	handlerIns := initHandler(loggerIns, services)
 
-	// Start message receiver consumers for different event types
-	messageReceiverIns.ConsumeActivation(context.Background(), handlerIns.Activation, handlerIns.ActivationError)
-	messageReceiverIns.ConsumePasswordReset(context.Background(), handlerIns.PasswordReset, handlerIns.PasswordResetError)
+	//Initialize Kafka message receiver
+	messageReceiverIns, err := initMessageReceiver(appConfig.GetKafka(), handlerIns, cipherIns)
+	if err != nil {
+		loggerIns.Errorw(context.Background(), "failed to initialize kafka", "error", err)
+		return
+	}
+
+	go messageReceiverIns.ListenActivationHResetTopic(context.Background(), handlerIns.ActivationError)
+
+	go messageReceiverIns.ListenPasswordResetTopic(context.Background(), handlerIns.PasswordResetError)
+
+	select {}
 }
 
 // initCipher initializes the AES cipher using the secret key from environment variable.
@@ -96,7 +98,7 @@ func initLogger(conf config.Logger) (port.Logger, error) {
 }
 
 // initMessageReceiver decrypts the Kafka broker URLs and returns a Kafka receiver instance.
-func initMessageReceiver(conf config.Kafka, cipherIns port.Cipher) (port.MessageReceiver, error) {
+func initMessageReceiver(conf config.Kafka, handlerIns port.Hanlder, cipherIns port.Cipher) (port.MessageReceiver, error) {
 	var brokers []string
 
 	// Decrypt each broker address
@@ -109,30 +111,41 @@ func initMessageReceiver(conf config.Kafka, cipherIns port.Cipher) (port.Message
 	}
 
 	// Pass individual config values to the Kafka adapter
-	return messageReceiver.New(
+	messageReceiverIns := messageReceiver.New(
 		brokers,
 		conf.GetConsumerGroupName(),
-		conf.GetActivationTopic(),
-		conf.GetPasswordResetTopic(),
 	)
+
+	//Start message receiver consumers for different event types
+	err := messageReceiverIns.RegisterActivation(conf.GetActivationTopic(), handlerIns.ActivationPhone, handlerIns.ActivationEmail)
+	if err != nil {
+		return nil, err
+	}
+	err = messageReceiverIns.RegisterActivation(conf.GetPasswordResetTopic(), handlerIns.PasswordResetPhone, handlerIns.PasswordResetEmail)
+	if err != nil {
+		return nil, err
+	}
+
+	return messageReceiverIns, nil
+
 }
 
 // initEmailSender decrypts SMTP credentials and initializes the email sender.
 func initEmailSender(conf config.Email, cipherIns port.Cipher) (port.EmailSender, error) {
 	// Decrypt host
-	host, err := cipherIns.Decrypt(conf.GetSMTPHost())
+	apiKey, err := cipherIns.Decrypt(conf.GetMailjetAPIKey())
 	if err != nil {
 		return nil, err
 	}
 
 	// Decrypt password
-	password, err := cipherIns.Decrypt(conf.GetSMTPPassword())
+	apiSecret, err := cipherIns.Decrypt(conf.GetMailjetAPISecret())
 	if err != nil {
 		return nil, err
 	}
 
 	// Return new email sender instance
-	return emailSender.New(conf.GetSMTPFrom(), host, password, conf.GetSMTPPort()), nil
+	return emailSender.New(apiKey, apiSecret, conf.GetMailjetFromEmail(), conf.GetMailjetFromName()), nil
 }
 
 // initHandler initializes the message handler with logger and available services.
