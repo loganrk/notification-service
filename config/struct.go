@@ -31,7 +31,7 @@ type kafka struct {
 		Activation    string `mapstructure:"activation"`
 		PasswordReset string `mapstructure:"passwordReset"`
 	} `mapstructure:"topics"`
-	ConsumerGroupName string `mapstructure:"consumer_group_name"`
+	ConsumerGroupName string `mapstructure:"consumerGroupName"`
 }
 
 type user struct {
@@ -44,10 +44,10 @@ type user struct {
 }
 
 type email struct {
-	SMTP struct {
-		From     string `mapstructure:"from"`
-		Password string `mapstructure:"password"`
-		Host     string `mapstructure:"host"`
-		Port     int    `mapstructure:"port"`
-	} `mapstructure:"smtp"`
+	Mailjet struct {
+		APIKey    string `mapstructure:"apiKey"`
+		APISecret string `mapstructure:"apiSecret"`
+		FromEmail string `mapstructure:"fromEmail"`
+		FromName  string `mapstructure:"fromName"`
+	} `mapstructure:"mailjet"`
 }

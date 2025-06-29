@@ -1,16 +1,15 @@
 package port
 
-import (
-	"context"
-
-	"github.com/loganrk/message-service/internal/core/domain"
-)
+import "context"
 
 type SvrList struct {
 	User UserSvr
 }
 
 type UserSvr interface {
-	Activation(ctx context.Context, req domain.UserActivation) error
-	PasswordReset(ctx context.Context, req domain.UserPasswordReset) error
+	ActivationEmail(ctx context.Context, to, subject string, macros map[string]string) error
+	ActivationPhone(ctx context.Context, to string, macros map[string]string) error
+
+	PasswordResetEmail(ctx context.Context, to, subject string, macros map[string]string) error
+	PasswordResetPhone(ctx context.Context, to string, macros map[string]string) error
 }
