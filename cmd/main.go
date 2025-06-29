@@ -124,7 +124,7 @@ func initMessageReceiver(conf config.Kafka, appName string, handlerIns port.Hanl
 	if err != nil {
 		return nil, err
 	}
-	err = messageReceiverIns.RegisterActivation(conf.GetPasswordResetTopic(), handlerIns.PasswordResetPhone, handlerIns.PasswordResetEmail)
+	err = messageReceiverIns.RegisterPasswordResetHandlers(conf.GetPasswordResetTopic(), handlerIns.PasswordResetPhone, handlerIns.PasswordResetEmail)
 	if err != nil {
 		return nil, err
 	}

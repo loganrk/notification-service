@@ -41,6 +41,7 @@ func New(brokers []string, groupID string) *consumer {
 	// Create a common Sarama config
 	cfg := sarama.NewConfig()
 	cfg.Consumer.Offsets.Initial = sarama.OffsetNewest // Start from latest messages
+	cfg.Version = sarama.V2_1_0_0
 
 	// Return initialized consumer
 	return &consumer{
@@ -145,7 +146,6 @@ func (c *consumer) consume(
 ) error {
 	go func() {
 		defer consumerGroup.Close()
-
 		for {
 			if err := consumerGroup.Consume(ctx, []string{topic}, &consumerHandler{
 				messageHandler: messageHandler,
