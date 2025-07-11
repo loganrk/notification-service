@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/loganrk/message-service/internal/core/port"
+	"github.com/loganrk/worker-engine/internal/core/port"
 )
 
 type handler struct {

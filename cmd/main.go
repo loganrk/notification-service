@@ -9,13 +9,13 @@ import (
 
 	"github.com/joho/godotenv"
 
-	"github.com/loganrk/message-service/config"
-	"github.com/loganrk/message-service/internal/core/port"
-	userUsecase "github.com/loganrk/message-service/internal/core/usecase/user"
+	"github.com/loganrk/worker-engine/config"
+	"github.com/loganrk/worker-engine/internal/core/port"
+	userUsecase "github.com/loganrk/worker-engine/internal/core/usecase/user"
 
-	emailSender "github.com/loganrk/message-service/internal/adapters/emailSender/mailjet"
-	"github.com/loganrk/message-service/internal/adapters/handler"
 	messageReceiver "github.com/loganrk/utils-go/adapters/message/kafka/consumer"
+	emailSender "github.com/loganrk/worker-engine/internal/adapters/emailSender/mailjet"
+	"github.com/loganrk/worker-engine/internal/adapters/handler"
 
 	cipher "github.com/loganrk/utils-go/adapters/cipher/aes"
 	logger "github.com/loganrk/utils-go/adapters/logger/zapLogger"

@@ -1,4 +1,4 @@
-module github.com/loganrk/message-service
+module github.com/loganrk/worker-engine
 
 go 1.20
 

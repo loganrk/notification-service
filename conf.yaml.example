@@ -1,5 +1,5 @@
 application:
-  name: "message-service"  # Name of the application
+  name: "worker-engine"  # Name of the application
 
 logger:
   level: "debug"  # Options: debug, info, warn, error

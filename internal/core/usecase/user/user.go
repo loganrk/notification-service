@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/loganrk/message-service/config"
-	"github.com/loganrk/message-service/internal/core/port"
-	"github.com/loganrk/message-service/internal/utils"
+	"github.com/loganrk/worker-engine/config"
+	"github.com/loganrk/worker-engine/internal/core/port"
+	"github.com/loganrk/worker-engine/internal/utils"
 )
 
 // userusecase implements user-related operations such as sending activation and password reset emails.
