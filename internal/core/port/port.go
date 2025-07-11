@@ -5,11 +5,14 @@ import (
 )
 
 type Hanlder interface {
-	Activation(ctx context.Context, message []byte) error
-	PasswordReset(ctx context.Context, message []byte) error
+	ActivationEmail(to, subject string, macros map[string]string) error
+	ActivationPhone(to string, macros map[string]string) error
+
+	PasswordResetEmail(to, subject string, macros map[string]string) error
+	PasswordResetPhone(to string, macros map[string]string) error
 
 	ActivationError(ctx context.Context, err error)
-	PasswordResetError(ctx context.Context, message []byte) error
+	PasswordResetError(ctx context.Context, err error)
 }
 
 // Cipher defines the interface for encrypting and decrypting strings.
@@ -43,8 +46,19 @@ type Logger interface {
 }
 
 type MessageReceiver interface {
-	ConsumeActivation(ctx context.Context, messageHandler func(ctx context.Context, message []byte) error, errorHandler func(ctx context.Context, err error)) error
-	ConsumePasswordReset(ctx context.Context, messageHandler func(ctx context.Context, message []byte) error, errorHandler func(ctx context.Context, err error)) error
+	RegisterPasswordResetHandlers(
+		passwordResetTopic string,
+		phoneHandler func(to string, macros map[string]string) error,
+		emailHandler func(to, subject string, macros map[string]string) error,
+	) error
+	RegisterActivation(
+		activationTopic string,
+		phoneHandler func(to string, macros map[string]string) error,
+		emailHandler func(to, subject string, macros map[string]string) error,
+
+	) error
+	ListenActivationHResetTopic(ctx context.Context, errorHandler func(ctx context.Context, err error)) error
+	ListenPasswordResetTopic(ctx context.Context, errorHandler func(ctx context.Context, err error)) error
 }
 
 type EmailSender interface {

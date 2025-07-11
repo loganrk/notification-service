@@ -1,24 +1,24 @@
 package config
 
 type Email interface {
-	GetSMTPFrom() string
-	GetSMTPPassword() string
-	GetSMTPHost() string
-	GetSMTPPort() int
+	GetMailjetAPIKey() string
+	GetMailjetAPISecret() string
+	GetMailjetFromEmail() string
+	GetMailjetFromName() string
 }
 
-func (e email) GetSMTPFrom() string {
-	return e.SMTP.From
+func (e email) GetMailjetAPIKey() string {
+	return e.Mailjet.APIKey
 }
 
-func (e email) GetSMTPPassword() string {
-	return e.SMTP.Password
+func (e email) GetMailjetAPISecret() string {
+	return e.Mailjet.APISecret
 }
 
-func (e email) GetSMTPHost() string {
-	return e.SMTP.Host
+func (e email) GetMailjetFromEmail() string {
+	return e.Mailjet.FromEmail
 }
 
-func (e email) GetSMTPPort() int {
-	return e.SMTP.Port
+func (e email) GetMailjetFromName() string {
+	return e.Mailjet.FromName
 }

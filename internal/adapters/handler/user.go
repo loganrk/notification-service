@@ -2,53 +2,69 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
-
-	"github.com/loganrk/message-service/internal/core/domain"
 )
 
-func (h *handler) Activation(ctx context.Context, message []byte) error {
-	h.logger.Infow(ctx, "Received Activation Message", "message", string(message))
+// ActivationEmail processes a user activation via email.
+func (h *handler) ActivationEmail(to, subject string, macros map[string]string) error {
+	ctx := context.Background()
 
-	var req domain.UserActivation
-	if err := json.Unmarshal(message, &req); err != nil {
-		h.logger.Errorw(ctx, "Failed to unmarshal activation message", "error", err)
+	err := h.usecases.User.ActivationEmail(ctx, to, subject, macros)
+	if err != nil {
+		h.logger.Errorw(ctx, "Failed to process Activation Email", "error", err)
 		return err
 	}
 
-	// Call usecase
-	if err := h.usecases.User.Activation(ctx, req); err != nil {
-		h.logger.Errorw(ctx, "Failed to process activation usecase", "error", err)
-		return err
-	}
-
-	h.logger.Infow(ctx, "Successfully processed Activation Message", "to", req.To)
+	h.logger.Infow(ctx, "Successfully processed Activation Email", "to", to)
 	return nil
 }
 
-func (h *handler) PasswordReset(ctx context.Context, message []byte) error {
-	h.logger.Infow(ctx, "Received Password Reset Message", "message", string(message))
-
-	var req domain.UserPasswordReset
-	if err := json.Unmarshal(message, &req); err != nil {
-		h.logger.Errorw(ctx, "Failed to unmarshal password reset message", "error", err)
+// ActivationPhone processes a user activation via phone (SMS).
+func (h *handler) ActivationPhone(to string, macros map[string]string) error {
+	ctx := context.Background()
+	err := h.usecases.User.ActivationPhone(ctx, to, macros)
+	if err != nil {
+		h.logger.Errorw(ctx, "Failed to process Activation Phone", "error", err)
 		return err
 	}
 
-	// Call usecase
-	if err := h.usecases.User.PasswordReset(ctx, req); err != nil {
-		h.logger.Errorw(ctx, "Failed to process password reset usecase", "error", err)
-		return err
-	}
-
-	h.logger.Infow(ctx, "Successfully processed Password Reset Message", "to", req.To)
+	h.logger.Infow(ctx, "Successfully processed Activation Phone", "to", to)
 	return nil
 }
 
+// PasswordResetEmail processes a password reset via email.
+func (h *handler) PasswordResetEmail(to, subject string, macros map[string]string) error {
+	ctx := context.Background()
+
+	err := h.usecases.User.PasswordResetEmail(ctx, to, subject, macros)
+	if err != nil {
+		h.logger.Errorw(ctx, "Failed to process Password Reset Email", "error", err)
+		return err
+	}
+
+	h.logger.Infow(ctx, "Successfully processed Password Reset Email", "to", to)
+	return nil
+}
+
+// PasswordResetPhone processes a password reset via phone (SMS).
+func (h *handler) PasswordResetPhone(to string, macros map[string]string) error {
+	ctx := context.Background()
+
+	err := h.usecases.User.PasswordResetPhone(ctx, to, macros)
+	if err != nil {
+		h.logger.Errorw(ctx, "Failed to process Password Reset Phone", "error", err)
+		return err
+	}
+
+	h.logger.Infow(ctx, "Successfully processed Password Reset Phone", "to", to)
+	return nil
+}
+
+// ActivationError logs errors that occur in the activation Kafka consumer pipeline.
 func (h *handler) ActivationError(ctx context.Context, err error) {
 	h.logger.Errorw(ctx, "Error in Activation Consumer", "error", err)
 }
 
+// PasswordResetError logs errors that occur in the password reset Kafka consumer pipeline.
 func (h *handler) PasswordResetError(ctx context.Context, err error) {
 	h.logger.Errorw(ctx, "Error in Password Reset Consumer", "error", err)
 }
