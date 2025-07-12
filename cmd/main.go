@@ -13,9 +13,11 @@ import (
 	"github.com/loganrk/worker-engine/internal/core/port"
 	userUsecase "github.com/loganrk/worker-engine/internal/core/usecase/user"
 
+	emailer "github.com/loganrk/worker-engine/internal/adapters/emailer/mailjet"
+
 	messageReceiver "github.com/loganrk/utils-go/adapters/message/kafka/consumer"
-	emailSender "github.com/loganrk/worker-engine/internal/adapters/emailSender/mailjet"
 	"github.com/loganrk/worker-engine/internal/adapters/handler"
+	slidingWindowRatelimit "github.com/loganrk/worker-engine/internal/adapters/ratelimiter/slidingWindow"
 
 	cipher "github.com/loganrk/utils-go/adapters/cipher/aes"
 	logger "github.com/loganrk/utils-go/adapters/logger/zapLogger"
@@ -51,14 +53,14 @@ func main() {
 	}
 
 	// Initialize SMTP email sender
-	emailSenderIns, err := initEmailSender(appConfig.GetEmail(), cipherIns)
+	emailIns, emailRatelimitIns, err := initEmailer(appConfig.GetEmail(), cipherIns)
 	if err != nil {
 		loggerIns.Errorw(context.Background(), "failed to initialize email sender", "error", err)
 		return
 	}
 
 	// Initialize user usecase/service with logger, email sender, and user config
-	userServiceIns, err := initUserService(loggerIns, emailSenderIns, appConfig.GetUser())
+	userServiceIns, err := initUserService(loggerIns, emailIns, emailRatelimitIns, appConfig.GetUser())
 	if err != nil {
 		loggerIns.Errorw(context.Background(), "failed to initialize user usecase", "error", err)
 		return
@@ -133,22 +135,29 @@ func initMessageReceiver(conf config.Kafka, appName string, handlerIns port.Hanl
 
 }
 
-// initEmailSender decrypts SMTP credentials and initializes the email sender.
-func initEmailSender(conf config.Email, cipherIns port.Cipher) (port.EmailSender, error) {
+// initEmailer decrypts SMTP credentials and initializes the email sender.
+func initEmailer(conf config.Email, cipherIns port.Cipher) (port.Emailer, port.RateLimiter, error) {
 	// Decrypt host
 	apiKey, err := cipherIns.Decrypt(conf.GetMailjetAPIKey())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Decrypt password
 	apiSecret, err := cipherIns.Decrypt(conf.GetMailjetAPISecret())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+
+	emailIns := emailer.New(apiKey, apiSecret, conf.GetMailjetFromEmail(), conf.GetMailjetFromName())
+
+	if conf.GetMailjetRateLimitEnabled() {
+		return emailIns, slidingWindowRatelimit.New(conf.GetMailjetRateLimitMaxRequest(), conf.GetMailjetRateLimitWindowSize()), nil
 	}
 
 	// Return new email sender instance
-	return emailSender.New(apiKey, apiSecret, conf.GetMailjetFromEmail(), conf.GetMailjetFromName()), nil
+	return emailIns, nil, nil
+
 }
 
 // initHandler initializes the message handler with logger and available services.
@@ -157,8 +166,8 @@ func initHandler(logger port.Logger, services port.SvrList) port.Hanlder {
 }
 
 // initUserService creates a new instance of the user service/usecase.
-func initUserService(logger port.Logger, emailSender port.EmailSender, conf config.User) (port.UserSvr, error) {
+func initUserService(logger port.Logger, emailer port.Emailer, emailRatelimitIns port.RateLimiter, conf config.User) (port.UserSvr, error) {
 
 	// Create and return the user service
-	return userUsecase.New(logger, emailSender, conf)
+	return userUsecase.New(conf, logger, emailer, emailRatelimitIns)
 }

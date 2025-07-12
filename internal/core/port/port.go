@@ -61,6 +61,11 @@ type MessageReceiver interface {
 	ListenPasswordResetTopic(ctx context.Context, errorHandler func(ctx context.Context, err error)) error
 }
 
-type EmailSender interface {
+type Emailer interface {
 	SendEmail(to, subject, body string) error
+}
+
+type RateLimiter interface {
+	Allow() bool
+	WaitUntilAllowed(ctx context.Context) error
 }

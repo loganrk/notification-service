@@ -6,22 +6,22 @@ import (
 	"github.com/mailjet/mailjet-apiv3-go"
 )
 
-type MailjetEmailSender struct {
+type MailjetEmailer struct {
 	Client   *mailjet.Client
 	From     string
 	FromName string
 }
 
-func New(apiKey, apiSecret, from, fromName string) *MailjetEmailSender {
+func New(apiKey, apiSecret, from, fromName string) *MailjetEmailer {
 	client := mailjet.NewMailjetClient(apiKey, apiSecret)
-	return &MailjetEmailSender{
+	return &MailjetEmailer{
 		Client:   client,
 		From:     from,
 		FromName: fromName,
 	}
 }
 
-func (m *MailjetEmailSender) SendEmail(to, subject, body string) error {
+func (m *MailjetEmailer) SendEmail(to, subject, body string) error {
 	toRecipients := mailjet.RecipientsV31{
 		mailjet.RecipientV31{
 			Email: to,
