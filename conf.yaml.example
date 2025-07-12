@@ -30,3 +30,7 @@ email:
     apiSecret: "your-mailjet-api-secret"
     fromEmail: "noreply@sampleApp.com"
     fromName: "sampleApp"
+    rateLimit:
+      enabled: true
+      maxRequests: 100
+      windowSize: "1m" # 1s,1m,1h,1d

@@ -1,5 +1,7 @@
 package config
 
+import "time"
+
 type app struct {
 	Application application `mapstructure:"application"`
 	Logger      logger      `mapstructure:"logger"`
@@ -45,9 +47,16 @@ type user struct {
 
 type email struct {
 	Mailjet struct {
-		APIKey    string `mapstructure:"apiKey"`
-		APISecret string `mapstructure:"apiSecret"`
-		FromEmail string `mapstructure:"fromEmail"`
-		FromName  string `mapstructure:"fromName"`
+		APIKey    string    `mapstructure:"apiKey"`
+		APISecret string    `mapstructure:"apiSecret"`
+		FromEmail string    `mapstructure:"fromEmail"`
+		FromName  string    `mapstructure:"fromName"`
+		RateLimit rateLimit `mapstructure:"rateLimit"`
 	} `mapstructure:"mailjet"`
+}
+
+type rateLimit struct {
+	Enabled     bool          `mapstructure:"enabled"`
+	MaxRequests int           `mapstructure:"maxRequests"`
+	WindowSize  time.Duration `mapstructure:"windowSize"`
 }
