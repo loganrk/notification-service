@@ -17,7 +17,7 @@ import (
 
 	messageReceiver "github.com/loganrk/utils-go/adapters/message/kafka/consumer"
 	"github.com/loganrk/worker-engine/internal/adapters/handler"
-	slidingWindowRatelimit "github.com/loganrk/worker-engine/internal/adapters/ratelimiter/slidingWindow"
+	slidingWindowRatelimit "github.com/loganrk/worker-engine/internal/adapters/rateLimiter/slidingWindow"
 
 	cipher "github.com/loganrk/utils-go/adapters/cipher/aes"
 	logger "github.com/loganrk/utils-go/adapters/logger/zapLogger"
